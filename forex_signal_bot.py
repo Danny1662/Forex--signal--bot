@@ -85,23 +85,16 @@ def send_telegram_message(bot_token, chat_id, text):
 
 
 def format_alert(pair, interval, signal, candle):
-    wat = timezone(timedelta(hours=1))
-    now = datetime.now(wat)
-    entry_time = now + timedelta(minutes=2)
-
-    ts = now.strftime("%Y-%m-%d %H:%M WAT")
-    entry_ts = entry_time.strftime("%I:%M %p WAT").lstrip("0")
-
+    local_time = datetime.now(timezone.utc) + timedelta(hours=1)
+    ts = local_time.strftime("%I:%M %p") + " WAT"
     return (
-        f"*{signal} SIGNAL* - {pair} ({interval})\n"
+        f"📈 *{signal} {pair}*\n"
+        f"Entry time: {ts}\n"
+        f"Timeframe: {interval}\n"
         f"Price: {candle['close']:.5f}\n"
-        f"RSI(14): {candle['rsi']:.1f}\n"
-        f"EMA9: {candle['ema_fast']:.5f} | EMA21: {candle['ema_slow']:.5f}\n"
-        f"Time: {ts}\n"
-        f"Entry: {entry_ts}\n\n"
-        f"Rule-based technical alert, not financial advice."
+        f"RSI(14): {candle['rsi']:.1f}\n\n"
+        f"_Rule-based technical alert, not financial advice._"
     )
-
 
 def main():
     pairs = json.loads(os.environ["PAIRS_JSON"])
