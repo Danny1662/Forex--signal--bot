@@ -92,21 +92,22 @@ def format_alert(pair, interval, signal, candle):
         f"RSI(14): {candle['rsi']:.1f}\n"
         f"EMA9: {candle['ema_fast']:.5f} | EMA21: {candle['ema_slow']:.5f}\n"
         f"Time: {ts}\n\n"
-        f"_Rule-based technical alert, not financial advice._"
-    )
+        f"_Rule-based technical alert, not financial
 
-
+        
 def main():
     pairs = json.loads(os.environ["PAIRS_JSON"])
     interval = os.environ["INTERVAL"]
     api_key = os.environ["TWELVE_DATA_API_KEY"]
     bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
-if os.environ.get("TEST_MODE") == "true":
+
+    if os.environ.get("TEST_MODE") == "true":
         test_msg = "🧪 TEST SIGNAL — this confirms Telegram delivery is working."
         send_telegram_message(bot_token, chat_id, test_msg)
         log.info("Test message sent.")
         return
+
     state = load_state()
 
     for pair in pairs:
@@ -131,7 +132,6 @@ if os.environ.get("TEST_MODE") == "true":
             log.error(f"Error processing {pair}: {e}")
 
     save_state(state)
-
 
 if __name__ == "__main__":
     main()
