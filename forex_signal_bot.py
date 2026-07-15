@@ -1,12 +1,12 @@
 """
-Forex Scalping Signal Bot — single-run version for GitHub Actions.
-NOT FINANCIAL ADVICE — a rule-based technical alert tool only.
+Forex Scalping Signal Bot - single-run version for GitHub Actions.
+NOT FINANCIAL ADVICE - a rule-based technical alert tool only.
 """
 
 import json
 import os
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import requests
 import pandas as pd
@@ -85,16 +85,24 @@ def send_telegram_message(bot_token, chat_id, text):
 
 
 def format_alert(pair, interval, signal, candle):
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    wat = timezone(timedelta(hours=1))
+    now = datetime.now(wat)
+    entry_time = now + timedelta(minutes=2)
+
+    ts = now.strftime("%Y-%m-%d %H:%M WAT")
+    entry_ts = entry_time.strftime("%I:%M %p WAT").lstrip("0")
+
     return (
-        f"*{signal} SIGNAL* — {pair} ({interval})\n"
+        f"*{signal} SIGNAL* - {pair} ({interval})\n"
         f"Price: {candle['close']:.5f}\n"
         f"RSI(14): {candle['rsi']:.1f}\n"
         f"EMA9: {candle['ema_fast']:.5f} | EMA21: {candle['ema_slow']:.5f}\n"
-        f"Time: {ts}\n\n"
-        f"_Rule-based technical alert, not financial
+        f"Time: {ts}\n"
+        f"Entry: {entry_ts}\n\n"
+        f"Rule-based technical alert, not financial advice."
+    )
 
-        
+
 def main():
     pairs = json.loads(os.environ["PAIRS_JSON"])
     interval = os.environ["INTERVAL"]
@@ -103,7 +111,7 @@ def main():
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
 
     if os.environ.get("TEST_MODE") == "true":
-        test_msg = "🧪 TEST SIGNAL — this confirms Telegram delivery is working."
+        test_msg = "TEST SIGNAL - this confirms Telegram delivery is working."
         send_telegram_message(bot_token, chat_id, test_msg)
         log.info("Test message sent.")
         return
@@ -132,6 +140,7 @@ def main():
             log.error(f"Error processing {pair}: {e}")
 
     save_state(state)
+
 
 if __name__ == "__main__":
     main()
