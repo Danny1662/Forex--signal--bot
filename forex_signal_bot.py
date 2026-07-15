@@ -1,4 +1,4 @@
- """
+"""
 Forex Scalping Signal Bot — single-run version for GitHub Actions.
 NOT FINANCIAL ADVICE — a rule-based technical alert tool only.
 """
