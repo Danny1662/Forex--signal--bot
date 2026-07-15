@@ -90,8 +90,8 @@ def format_alert(pair, interval, signal, candle):
         f"*{signal} SIGNAL* — {pair} ({interval})\n"
         f"Price: {candle['close']:.5f}\n"
         f"RSI(14): {candle['rsi']:.1f}\n"
-        f"EMA9: {candle['ema_fast']:.5f} | EMA21: {candle['ema_slow']:.5f}\n"
-        f"Time: {ts}\n\n"
+        f"EMA9: {candle['ema_fast']:.5f} | EMA21: {candle['ema_slow']:.5f}\f"Time: {ts}\n"
+        f"⏱ Entry: {entry_ts}\n\n"
         f"_Rule-based technical alert, not financial advice._"
     )
 
