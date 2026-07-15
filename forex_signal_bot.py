@@ -6,7 +6,7 @@ NOT FINANCIAL ADVICE — a rule-based technical alert tool only.
 import json
 import os
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import requests
 import pandas as pd
