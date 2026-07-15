@@ -29,7 +29,7 @@ jobs:
 
       - name: Run signal check
         env:
-          PAIRS_JSON: '["EUR/USD", "GBP/USD", "USD/JPY"]'
+          PAIRS_JSON: PAIRS_JSON: '["EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "AUD/USD", "USD/CAD", "NZD/USD", "EUR/GBP"]'
           INTERVAL: '15min'
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
