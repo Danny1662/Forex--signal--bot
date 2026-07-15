@@ -1,11 +1,12 @@
- Signal Bot — single-run version for GitHub Actions.
+ """
+Forex Scalping Signal Bot — single-run version for GitHub Actions.
 NOT FINANCIAL ADVICE — a rule-based technical alert tool only.
 """
 
 import json
 import os
 import logging
- from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 import requests
 import pandas as pd
@@ -84,13 +85,13 @@ def send_telegram_message(bot_token, chat_id, text):
 
 
 def format_alert(pair, interval, signal, candle):
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")entry_ts = (datetime.now(timezone.utc) + timedelta(minutes=2)).strftime("%I:%M %p UTC").lstrip("0")
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     return (
         f"*{signal} SIGNAL* — {pair} ({interval})\n"
         f"Price: {candle['close']:.5f}\n"
         f"RSI(14): {candle['rsi']:.1f}\n"
-        f"EMA9: {candle['ema_fast']:.5f} | EMA21: {candle['ema_slow']:.5f}\f"Time: {ts}\n"
-        f"⏱ Entry: {entry_ts}\n\n"
+        f"EMA9: {candle['ema_fast']:.5f} | EMA21: {candle['ema_slow']:.5f}\n"
+        f"Time: {ts}\n\n"
         f"_Rule-based technical alert, not financial advice._"
     )
 
