@@ -67,13 +67,13 @@ def compute_signal(df, ema_fast=9, ema_slow=21, rsi_period=14):
     prev, last = df.iloc[-2], df.iloc[-1]
     crossed_up = prev["ema_fast"] <= prev["ema_slow"] and last["ema_fast"] > last["ema_slow"]
     crossed_down = prev["ema_fast"] >= prev["ema_slow"] and last["ema_fast"] < last["ema_slow"]
-
-    signal = None
-    if crossed_up and last["rsi"] > 50:
+signal = None
+    if crossed_up:
         signal = "BUY"
-    elif crossed_down and last["rsi"] < 50:
+    elif crossed_down:
         signal = "SELL"
     return signal, last
+    
 
 
 def send_telegram_message(bot_token, chat_id, text):
