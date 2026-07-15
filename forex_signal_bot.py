@@ -50,7 +50,7 @@ def fetch_candles(pair, interval, api_key, output_size=100):
     return df.sort_values("datetime").reset_index(drop=True)
 
 
-def compute_signal(df, ema_fast=9, ema_slow=21, rsi_period=14):
+def compute_signal(df, ema_fast=5, ema_slow=13, rsi_period=14):
     if df is None or len(df) < max(ema_slow, rsi_period) + 2:
         return None, None
     df = df.copy()
