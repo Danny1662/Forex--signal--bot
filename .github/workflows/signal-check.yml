@@ -1,8 +1,8 @@
 name: Forex Signal Check
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'
+schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch: {}
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
       - name: Run signal check
         env:
           PAIRS_JSON: '["EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "AUD/USD", "USD/CAD", "NZD/USD", "EUR/GBP"]'
-          INTERVAL: '15min'
+          INTERVAL: '5min'
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
