@@ -85,7 +85,7 @@ def send_telegram_message(bot_token, chat_id, text):
 
 
 def format_alert(pair, interval, signal, candle):
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")entry_ts = (datetime.now(timezone.utc) + timedelta(minutes=2)).strftime("%I:%M %p UTC").lstrip("0")
     return (
         f"*{signal} SIGNAL* — {pair} ({interval})\n"
         f"Price: {candle['close']:.5f}\n"
