@@ -219,8 +219,11 @@ def health():
     return "Forex signal bot is running."
 
 
+poll_thread = threading.Thread(target=telegram_poll_loop, daemon=True)
+poll_thread.start()
+
 if __name__ == "__main__":
-    poll_thread = threading.Thread(target=telegram_poll_loop, daemon=True)
-    poll_thread.start()
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
+
