@@ -101,4 +101,146 @@ def confirm_with_arima(df, signal, steps=3, lookback=100):
         elif signal == "SELL" and direction < 0:
             return True, forecast_price, confidence
         else:
-            return Fa
+            return False, forecast_price, confidence
+    except Exception as e:
+        log.warning(f"ARIMA fit failed, skipping confirmation: {e}")
+        return False, None, None
+
+
+def send_telegram_message(bot_token, chat_id, text):
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    resp = requests.post(url, data=payload, timeout=15)
+    if not resp.ok:
+        log.error(f"Telegram send failed: {resp.text}")
+
+
+def interval_minutes(interval):
+    mapping = {"1min": 1, "5min": 5, "15min": 15, "30min": 30, "1h": 60}
+    return mapping.get(interval, 5)
+
+
+def format_alert(pair, interval, signal, candle, forecast_price=None, confidence=None):
+    now_wat = datetime.now(timezone.utc) + WAT_OFFSET
+    exit_wat = now_wat + timedelta(minutes=interval_minutes(interval) * 3)
+    entry_ts = now_wat.strftime("%I:%M %p") + " WAT"
+    exit_ts = exit_wat.strftime("%I:%M %p") + " WAT"
+
+    conf_line = f"Confidence: {confidence}%\n" if confidence is not None else ""
+    forecast_line = f"ARIMA forecast: {forecast_price:.5f}\n" if forecast_price is not None else ""
+
+    return (
+        f"📈 *{signal} {pair}*\n"
+        f"{conf_line}"
+        f"Entry time: {entry_ts}\n"
+        f"Suggested exit: {exit_ts}\n"
+        f"Timeframe: {interval}\n"
+        f"Price: {candle['close']:.5f}\n"
+        f"RSI(14): {candle['rsi']:.1f}\n"
+        f"{forecast_line}\n"
+        f"_Rule-based technical alert, not financial advice._"
+    )
+
+
+def check_pair(pair, interval, api_key):
+    df = fetch_candles(pair, interval, api_key)
+    signal, candle = compute_signal(df)
+    if signal is None:
+        return None, None
+    confirmed, forecast_price, confidence = confirm_with_arima(df, signal)
+    if not confirmed:
+        return signal, None
+    msg = format_alert(pair, interval, signal, candle, forecast_price, confidence)
+    return signal, msg
+
+
+def get_telegram_updates(bot_token, last_update_id):
+    url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
+    params = {"offset": last_update_id + 1, "timeout": 0}
+    resp = requests.get(url, params=params, timeout=15)
+    if not resp.ok:
+        log.error(f"getUpdates failed: {resp.text}")
+        return [], last_update_id
+    results = resp.json().get("result", [])
+    new_last_id = last_update_id
+    for r in results:
+        new_last_id = max(new_last_id, r["update_id"])
+    return results, new_last_id
+
+
+def handle_on_demand(pairs, interval, api_key, bot_token, chat_id, state):
+    last_update_id = state.get("_last_update_id", 0)
+    updates, new_last_id = get_telegram_updates(bot_token, last_update_id)
+    log.info(f"Checked for Telegram commands: got {len(updates)} update(s), last_update_id was {last_update_id}, now {new_last_id}")
+    for u in updates:
+        log.info(f"Update content: {u}")
+    state["_last_update_id"] = new_last_id
+
+    triggered = False
+    for u in updates:
+        text = u.get("message", {}).get("text", "")
+        if text.strip().lower() in ("/start", "/signal"):
+            triggered = True
+
+    if not triggered:
+        log.info("No /start or /signal command found, skipping on-demand check")
+        return
+
+    log.info("Command detected! Running on-demand check now")
+    send_telegram_message(bot_token, chat_id, "🔍 Checking current signals now...")
+    for pair in pairs:
+        try:
+            signal, msg = check_pair(pair, interval, api_key)
+            if msg:
+                send_telegram_message(bot_token, chat_id, msg)
+            elif signal:
+                send_telegram_message(bot_token, chat_id, f"{pair}: {signal} crossover seen but not confirmed by forecast — skipping.")
+            else:
+                send_telegram_message(bot_token, chat_id, f"{pair}: no crossover signal right now.")
+        except Exception as e:
+            log.error(f"On-demand check failed for {pair}: {e}")
+
+
+def main():
+    pairs = json.loads(os.environ["PAIRS_JSON"])
+    interval = os.environ["INTERVAL"]
+    api_key = os.environ["TWELVE_DATA_API_KEY"]
+    bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
+    chat_id = os.environ["TELEGRAM_CHAT_ID"]
+
+    state = load_state()
+
+    handle_on_demand(pairs, interval, api_key, bot_token, chat_id, state)
+
+    for pair in pairs:
+        try:
+            df = fetch_candles(pair, interval, api_key)
+            signal, candle = compute_signal(df)
+            if signal is None:
+                log.info(f"{pair}: no crossover signal")
+                continue
+
+            candle_ts = str(candle["datetime"])
+            if state.get(pair) == candle_ts:
+                log.info(f"{pair}: signal already alerted for this candle")
+                continue
+
+            confirmed, forecast_price, confidence = confirm_with_arima(df, signal)
+            if not confirmed:
+                log.info(f"{pair}: {signal} crossover not confirmed by ARIMA, skipping")
+                state[pair] = candle_ts
+                continue
+
+            msg = format_alert(pair, interval, signal, candle, forecast_price, confidence)
+            send_telegram_message(bot_token, chat_id, msg)
+            log.info(f"Sent confirmed {signal} for {pair}")
+            state[pair] = candle_ts
+
+        except Exception as e:
+            log.error(f"Error processing {pair}: {e}")
+
+    save_state(state)
+
+
+if __name__ == "__main__":
+    main()
