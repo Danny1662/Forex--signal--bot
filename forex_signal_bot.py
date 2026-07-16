@@ -1,7 +1,7 @@
 """
-Forex Scalping Signal Bot — v3
-Adds: confidence %, entry/exit time (WAT), on-demand /start or /signal
-command support (checked each scheduled run, so up to ~5 min delay).
+Forex Scalping Signal Bot — v4
+Confidence %, entry time, Nigerian time (WAT), on-demand /start or
+/signal command support, and a clean flag-style alert format.
 
 NOT FINANCIAL ADVICE — a rule-based technical alert tool only.
 """
@@ -20,6 +20,16 @@ log = logging.getLogger("forex_signal_bot")
 
 STATE_PATH = "state.json"
 WAT_OFFSET = timedelta(hours=1)  # Nigeria is UTC+1
+
+FLAG_MAP = {
+    "USD": "🇺🇸", "EUR": "🇪🇺", "GBP": "🇬🇧", "JPY": "🇯🇵",
+    "CHF": "🇨🇭", "AUD": "🇦🇺", "CAD": "🇨🇦", "NZD": "🇳🇿",
+}
+
+
+def pair_flags(pair):
+    base, quote = pair.split("/")
+    return f"{FLAG_MAP.get(base, '')} {base}/{quote} {FLAG_MAP.get(quote, '')}"
 
 
 def load_state():
@@ -115,29 +125,20 @@ def send_telegram_message(bot_token, chat_id, text):
         log.error(f"Telegram send failed: {resp.text}")
 
 
-def interval_minutes(interval):
-    mapping = {"1min": 1, "5min": 5, "15min": 15, "30min": 30, "1h": 60}
-    return mapping.get(interval, 5)
-
-
 def format_alert(pair, interval, signal, candle, forecast_price=None, confidence=None):
     now_wat = datetime.now(timezone.utc) + WAT_OFFSET
-    exit_wat = now_wat + timedelta(minutes=interval_minutes(interval) * 3)
     entry_ts = now_wat.strftime("%I:%M %p") + " WAT"
-    exit_ts = exit_wat.strftime("%I:%M %p") + " WAT"
 
-    conf_line = f"Confidence: {confidence}%\n" if confidence is not None else ""
-    forecast_line = f"ARIMA forecast: {forecast_price:.5f}\n" if forecast_price is not None else ""
+    direction_box = "🟢" if signal == "BUY" else "🔴"
+    conf_line = f"🎯 Confidence: {confidence}%\n" if confidence is not None else ""
 
     return (
-        f"📈 *{signal} {pair}*\n"
-        f"{conf_line}"
-        f"Entry time: {entry_ts}\n"
-        f"Suggested exit: {exit_ts}\n"
-        f"Timeframe: {interval}\n"
-        f"Price: {candle['close']:.5f}\n"
-        f"RSI(14): {candle['rsi']:.1f}\n"
-        f"{forecast_line}\n"
+        f"🔔 *NEW SIGNAL!*\n\n"
+        f"📊 Trade: {pair_flags(pair)}\n"
+        f"⏳ Timer: {interval}\n"
+        f"➡️ Entry: {entry_ts}\n"
+        f"📈 Direction: {signal} {direction_box}\n"
+        f"{conf_line}\n"
         f"_Rule-based technical alert, not financial advice._"
     )
 
