@@ -1,7 +1,7 @@
 """
-Forex Scalping Signal Bot — single-run version for GitHub Actions.
-Crossover signals are confirmed with a lightweight ARIMA forecast
-before alerting, to filter out likely-noise signals.
+Forex Scalping Signal Bot — v3
+Adds: confidence %, entry/exit time (WAT), on-demand /start or /signal
+command support (checked each scheduled run, so up to ~5 min delay).
 
 NOT FINANCIAL ADVICE — a rule-based technical alert tool only.
 """
@@ -19,6 +19,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("forex_signal_bot")
 
 STATE_PATH = "state.json"
+WAT_OFFSET = timedelta(hours=1)  # Nigeria is UTC+1
 
 
 def load_state():
@@ -81,8 +82,6 @@ def compute_signal(df, ema_fast=5, ema_slow=13, rsi_period=14):
 
 
 def confirm_with_arima(df, signal, steps=3, lookback=100):
-    """Fit a quick ARIMA model on recent closes and check the forecast
-    direction agrees with the crossover signal. Returns (confirmed, forecast_price)."""
     closes = df["close"].values[-lookback:]
     try:
         model = ARIMA(closes, order=(1, 1, 1))
@@ -91,80 +90,15 @@ def confirm_with_arima(df, signal, steps=3, lookback=100):
         forecast_price = float(forecast[-1])
         direction = forecast_price - closes[-1]
 
+        recent_std = pd.Series(closes[-20:]).diff().std()
+        if recent_std == 0 or pd.isna(recent_std):
+            recent_std = 1e-6
+        move_strength = abs(direction) / recent_std
+        confidence = max(5, min(95, round(move_strength * 25)))
+
         if signal == "BUY" and direction > 0:
-            return True, forecast_price
+            return True, forecast_price, confidence
         elif signal == "SELL" and direction < 0:
-            return True, forecast_price
+            return True, forecast_price, confidence
         else:
-            return False, forecast_price
-    except Exception as e:
-        log.warning(f"ARIMA fit failed, skipping confirmation: {e}")
-        return False, None
-
-
-def send_telegram_message(bot_token, chat_id, text):
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
-    resp = requests.post(url, data=payload, timeout=15)
-    if not resp.ok:
-        log.error(f"Telegram send failed: {resp.text}")
-
-
-def format_alert(pair, interval, signal, candle, forecast_price=None):
-    local_time = datetime.now(timezone.utc) + timedelta(hours=1)
-    ts = local_time.strftime("%I:%M %p") + " WAT"
-    forecast_line = ""
-    if forecast_price is not None:
-        forecast_line = f"ARIMA forecast: {forecast_price:.5f}\n"
-    return (
-        f"📈 *{signal} {pair}*\n"
-        f"Entry time: {ts}\n"
-        f"Timeframe: {interval}\n"
-        f"Price: {candle['close']:.5f}\n"
-        f"RSI(14): {candle['rsi']:.1f}\n"
-        f"{forecast_line}\n"
-        f"_Rule-based technical alert, not financial advice._"
-    )
-
-
-def main():
-    pairs = json.loads(os.environ["PAIRS_JSON"])
-    interval = os.environ["INTERVAL"]
-    api_key = os.environ["TWELVE_DATA_API_KEY"]
-    bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
-    chat_id = os.environ["TELEGRAM_CHAT_ID"]
-
-    state = load_state()
-
-    for pair in pairs:
-        try:
-            df = fetch_candles(pair, interval, api_key)
-            signal, candle = compute_signal(df)
-            if signal is None:
-                log.info(f"{pair}: no crossover signal")
-                continue
-
-            candle_ts = str(candle["datetime"])
-            if state.get(pair) == candle_ts:
-                log.info(f"{pair}: signal already alerted for this candle")
-                continue
-
-            confirmed, forecast_price = confirm_with_arima(df, signal)
-            if not confirmed:
-                log.info(f"{pair}: {signal} crossover not confirmed by ARIMA forecast, skipping")
-                state[pair] = candle_ts
-                continue
-
-            msg = format_alert(pair, interval, signal, candle, forecast_price)
-            send_telegram_message(bot_token, chat_id, msg)
-            log.info(f"Sent confirmed {signal} for {pair}")
-            state[pair] = candle_ts
-
-        except Exception as e:
-            log.error(f"Error processing {pair}: {e}")
-
-    save_state(state)
-
-
-if __name__ == "__main__":
-    main()
+            return Fa
