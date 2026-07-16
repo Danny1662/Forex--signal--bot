@@ -177,11 +177,20 @@ def run_scan_and_reply():
         msg = format_alert(pair, INTERVAL, signal, candle, forecast_price, confidence)
         send_telegram_message(msg)
 
+offset = 0
+    log.info("Clearing any backlog of old messages on startup")
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+        resp = requests.get(url, params={"timeout": 0}, timeout=15)
+        results = resp.json().get("result", [])
+        for r in results:
+            offset = max(offset, r["update_id"])
+        log.info(f"Backlog cleared, starting fresh from update_id {offset}")
+    except Exception as e:
+        log.error(f"Failed to clear backlog: {e}")
 
-def telegram_poll_loop():
-    offset = 0
     log.info("Starting Telegram long-poll loop")
-    while True:
+
         try:
             url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
             params = {"offset": offset + 1, "timeout": 30}
